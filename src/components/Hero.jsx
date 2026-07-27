@@ -18,7 +18,7 @@ const CHECKLIST = [
 const STATS = [
   { value: "250+", label: "Projects Delivered" },
   { value: "70+", label: "Happy Clients" },
-  { value: "3+", label: "Years of Experience" },
+  { value: "5+", label: "Years of Experience" },
   { value: "99%", label: "Client Satisfaction" },
 ];
 
