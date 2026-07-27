@@ -142,11 +142,11 @@ function MiniPanel({ icon: Icon, label, visual, i }) {
       transition={{ duration: 0.45, delay: 0.2 + i * 0.1 }}
       className="rounded-xl border border-white/10 bg-white/[0.03] p-3 sm:p-4"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         <span className="grid place-items-center h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-violet-500 text-white shrink-0">
           <Icon size={14} />
         </span>
-        <p className="text-[11px] sm:text-xs font-semibold text-white truncate">{label}</p>
+        <p className="text-[10.5px] sm:text-xs font-semibold text-white leading-tight break-words">{label}</p>
       </div>
       <div className="mt-3 min-h-[2.5rem] flex items-center">
         {visual === "chat" && (
