@@ -28,6 +28,7 @@ import Services from "./components/Services";
 import About from "./components/About";
 import Project from "./components/Project";
 import Contact from "./components/Contact";
+import Blog from "./components/Blog";
 import Footer from "./components/Footer";
 import ThankYou from "./components/ThankYou";
 
@@ -40,6 +41,7 @@ function HomePage() {
       <About />
       <Project />
       <Contact />
+      <Blog />
       <Footer />
     </>
   );

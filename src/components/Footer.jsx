@@ -9,6 +9,7 @@ const QUICK_LINKS = [
   { label: "About Us", href: "#about" },
   { label: "Project", href: "#project" },
   { label: "Contact Us", href: "#contact" },
+  { label: "Blog", href: "#blog" },
 ];
 
 const WHATSAPP_MESSAGE = encodeURIComponent(
