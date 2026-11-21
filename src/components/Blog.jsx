@@ -19,6 +19,17 @@ const MAX_IMAGE_MB = 5;
 const MAX_CONTENT_CHARS = 45000; // Google Sheet ek cell me ~50,000 characters tak leta hai
 const PASSWORD_KEY = "chauhan_mis_blog_admin";
 
+// Contact form ke "What do you need?" wale same options
+const BLOG_CATEGORIES = [
+  "Google Sheets & Apps Script Automation",
+  "CRM & Lead Management",
+  "AI Automation & AI Agents",
+  "WhatsApp Automation & Bulk Messaging",
+  "Custom Software / ERP / CRM",
+  "Website Development",
+];
+const OTHER_CATEGORY = "__other__";
+
 // Public: sirf Published blogs
 async function fetchPublishedBlogs() {
   const res = await fetch(BLOG_API_URL);
@@ -240,6 +251,17 @@ function RichTextEditor({ value, onChange }) {
 /* ------------------------------------------------------------------ */
 function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
   const [form, setForm] = useState(initial || initialForm);
+  // Dropdown ke options: fixed list + pehle use hui custom categories
+  const categoryOptions = [...new Set([...BLOG_CATEGORIES, ...existingCategories])];
+  const [categoryChoice, setCategoryChoice] = useState(
+    !form.category ? "" : categoryOptions.includes(form.category) ? form.category : OTHER_CATEGORY
+  );
+
+  const handleCategoryChoice = (e) => {
+    const value = e.target.value;
+    setCategoryChoice(value);
+    setForm((f) => ({ ...f, category: value === OTHER_CATEGORY ? "" : value }));
+  };
   const [imageError, setImageError] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -346,19 +368,23 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
       {/* Category */}
       <div>
         <label className={labelCls}>Blog Category *</label>
-        <input
-          required
-          list="blog-categories"
-          value={form.category}
-          onChange={update("category")}
-          placeholder="Example: AI Automation"
-          className={inputCls}
-        />
-        <datalist id="blog-categories">
-          {existingCategories.map((c) => <option key={c} value={c} />)}
-        </datalist>
+        <select required value={categoryChoice} onChange={handleCategoryChoice} className={inputCls}>
+          <option value="" disabled>Select category</option>
+          {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          <option value={OTHER_CATEGORY}>Other (nayi category likhein)</option>
+        </select>
+        {categoryChoice === OTHER_CATEGORY && (
+          <input
+            required
+            autoFocus
+            value={form.category}
+            onChange={update("category")}
+            placeholder="Nayi category ka naam likhein, jaise: MIS Reports"
+            className={inputCls}
+          />
+        )}
         <p className={hintCls}>
-          Existing category select karein ya nayi category enter karein. Same category ki spelling har blog main same rakhein.
+          List se category chunein. Nayi category chahiye to "Other" chunein. Nayi category agle blog me list me apne aap aa jayegi.
         </p>
         <div className="mt-2 rounded-lg border border-navy-900/10 bg-ice-200/50 px-4 py-2.5 text-xs text-navy-900/60">
           <p className="font-semibold">Category URL Preview:</p>
