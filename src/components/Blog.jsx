@@ -1,23 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  PenSquare, Save, X, Loader2, Lock, LogOut, Calendar, User, Tag, ArrowRight, Trash2, Pencil,
+  PASSWORD_KEY, fetchPublishedBlogs, adminRequest, getSavedPassword, clearBlogCache,
+  slugify, parseKeywords, sanitizeHtml, formatDate, blogUrl,
+} from "../lib/blogApi";
+import {
+  PenSquare, Save, X, Loader2, Lock, LogOut, Calendar, Tag, ArrowRight, Trash2, Pencil,
   Undo2, Redo2, Bold, Italic, Underline, Strikethrough, List, ListOrdered,
   Link2, ImagePlus, Quote, Minus, Eraser, Code2, AlignLeft, AlignCenter, AlignRight,
 } from "lucide-react";
 
-/* ------------------------------------------------------------------ */
-/*  Google Sheet API                                                   */
-/*  Apps Script ka Web App URL yahan paste karein (/exec se khatam)    */
-/*  Code: google-apps-script/BlogScript.gs                             */
-/* ------------------------------------------------------------------ */
-const BLOG_API_URL = "https://script.google.com/macros/s/AKfycbzg1lFevoQkmfxYXS4Mtwx8gvTzcxSPPLiTjFPdSRdWeD8TrIpkTvs1PDEXMH57pC5iFw/exec";
 
 const DEFAULT_AUTHOR = "Chauhan MIS Automation Services";
 const MAX_KEYWORDS = 10;
 const MAX_IMAGE_MB = 5;
 const MAX_CONTENT_CHARS = 45000; // Google Sheet ek cell me ~50,000 characters tak leta hai
-const PASSWORD_KEY = "chauhan_mis_blog_admin";
 
 // Contact form ke "What do you need?" wale same options
 const BLOG_CATEGORIES = [
@@ -30,60 +28,9 @@ const BLOG_CATEGORIES = [
 ];
 const OTHER_CATEGORY = "__other__";
 
-// Public: sirf Published blogs
-async function fetchPublishedBlogs() {
-  const res = await fetch(BLOG_API_URL);
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error || "Blogs load nahi ho paye");
-  return data.blogs;
-}
-
-// Admin: password ke saath (list / save / delete / login)
-async function adminRequest(body) {
-  const res = await fetch(BLOG_API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" }, // CORS preflight se bachne ke liye
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error || "Request fail ho gayi");
-  return data;
-}
-
-const getSavedPassword = () => {
-  try { return sessionStorage.getItem(PASSWORD_KEY) || ""; } catch { return ""; }
-};
-
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
-const slugify = (text) =>
-  text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-const parseKeywords = (text) =>
-  text.split(",").map((k) => k.trim()).filter(Boolean);
-
-// Strip scripts, event handlers and javascript: links before rendering HTML
-function sanitizeHtml(html) {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  doc.querySelectorAll("script, style, iframe, object, embed, form").forEach((el) => el.remove());
-  doc.querySelectorAll("*").forEach((el) => {
-    [...el.attributes].forEach((attr) => {
-      const name = attr.name.toLowerCase();
-      const value = attr.value.trim().toLowerCase();
-      if (name.startsWith("on")) el.removeAttribute(attr.name);
-      if ((name === "href" || name === "src") && value.startsWith("javascript:")) el.removeAttribute(attr.name);
-    });
-  });
-  return doc.body.innerHTML;
-}
-
 // Resize image so it doesn't fill up storage (max 1200px wide, JPEG)
 function compressImage(file) {
   return new Promise((resolve, reject) => {
@@ -105,9 +52,6 @@ function compressImage(file) {
     reader.readAsDataURL(file);
   });
 }
-
-const formatDate = (iso) =>
-  new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 const initialForm = {
   title: "",
@@ -499,86 +443,18 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Full blog view (modal)                                             */
-/* ------------------------------------------------------------------ */
-function BlogReader({ blog, onClose }) {
-  // Basic on-page SEO while a blog is open
-  useEffect(() => {
-    const prevTitle = document.title;
-    document.title = blog.seoTitle || blog.title;
-    const meta = document.querySelector('meta[name="description"]');
-    const prevMeta = meta?.getAttribute("content");
-    if (meta && blog.metaDescription) meta.setAttribute("content", blog.metaDescription);
-    document.body.style.overflow = "hidden";
-    const onKey = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.title = prevTitle;
-      if (meta && prevMeta != null) meta.setAttribute("content", prevMeta);
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [blog, onClose]);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-      className="fixed inset-0 z-[150] bg-navy-950/70 backdrop-blur-sm overflow-y-auto px-4 py-10"
-    >
-      <motion.article
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 30, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="relative mx-auto max-w-3xl rounded-2xl bg-white shadow-2xl overflow-hidden"
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-10 grid place-items-center h-9 w-9 rounded-full bg-white/90 text-navy-900 shadow"
-          aria-label="Close"
-        >
-          <X size={18} />
-        </button>
-        {blog.image && <img src={blog.image} alt={blog.title} className="w-full max-h-96 object-cover" />}
-        <div className="p-6 sm:p-10">
-          <span className="text-xs font-semibold tracking-widest text-blue-500 uppercase">{blog.category}</span>
-          <h1 className="font-display mt-2 text-2xl sm:text-3xl font-bold text-navy-900">{blog.title}</h1>
-          <div className="mt-3 flex flex-wrap gap-4 text-xs text-navy-900/50">
-            <span className="flex items-center gap-1.5"><User size={13} /> {blog.author}</span>
-            <span className="flex items-center gap-1.5"><Calendar size={13} /> {formatDate(blog.createdAt)}</span>
-          </div>
-          <div
-            className="blog-content mt-6 text-navy-900/80 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(blog.content) }}
-          />
-          {blog.keywords && (
-            <div className="mt-8 flex flex-wrap gap-2 border-t border-navy-900/10 pt-5">
-              {parseKeywords(blog.keywords).map((k) => (
-                <span key={k} className="rounded-full bg-ice-50 border border-navy-900/10 px-3 py-1 text-xs text-navy-900/60">#{k}</span>
-              ))}
-            </div>
-          )}
-        </div>
-      </motion.article>
-    </motion.div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Main Blog section                                                  */
 /* ------------------------------------------------------------------ */
 export default function Blog() {
+  const { categorySlug } = useParams(); // /blog/category/<slug>
+  const navigate = useNavigate();
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null); // blog being edited
-  const [reading, setReading] = useState(null);
-  const [activeCategory, setActiveCategory] = useState("All");
+
   const [showDrafts, setShowDrafts] = useState(false);
   const [toast, setToast] = useState("");
 
@@ -601,7 +477,7 @@ export default function Blog() {
     try {
       const list = isAdmin
         ? (await adminRequest({ action: "list", password })).blogs
-        : await fetchPublishedBlogs();
+        : await fetchPublishedBlogs({ force: true });
       setBlogs(list);
     } catch (err) {
       console.error(err);
@@ -616,6 +492,11 @@ export default function Blog() {
   }, [loadBlogs]);
 
   const categories = useMemo(() => [...new Set(blogs.map((b) => b.category))], [blogs]);
+
+  // Category URL se: /blog/category/whatsapp-automation-bulk-messaging
+  const activeCategory = categories.find((c) => slugify(c) === categorySlug) || "All";
+  const setActiveCategory = (c) =>
+    navigate(c === "All" ? "/blog" : `/blog/category/${slugify(c)}`, { state: { noScroll: true } });
 
   const visibleBlogs = blogs
     .filter((b) => showDrafts || b.status === "Published")
@@ -662,6 +543,7 @@ export default function Blog() {
     try {
       const payload = editing ? { ...data, id: editing.id } : data;
       await adminRequest({ action: "save", password, blog: payload });
+      clearBlogCache();
       flash(data.status === "Published" ? "Blog publish ho gaya! Ab sabko dikhega." : "Blog draft me save ho gaya.");
       if (data.status === "Draft") setShowDrafts(true);
       setShowForm(false);
@@ -679,6 +561,7 @@ export default function Blog() {
     if (!confirm("Kya aap ye blog delete karna chahte hain?")) return;
     try {
       await adminRequest({ action: "delete", password, id });
+      clearBlogCache();
       setBlogs((list) => list.filter((b) => b.id !== id));
       flash("Blog delete ho gaya.");
     } catch (err) {
@@ -691,8 +574,6 @@ export default function Blog() {
     setShowForm(true);
     setTimeout(() => document.getElementById("blog")?.scrollIntoView({ behavior: "smooth" }), 50);
   };
-
-  const closeReader = useCallback(() => setReading(null), []);
 
   const closeForm = () => {
     setShowForm(false);
@@ -843,7 +724,7 @@ export default function Blog() {
                 >
                   <div className="relative aspect-[16/9] bg-gradient-to-br from-blue-500/15 to-violet-500/15">
                     {blog.image ? (
-                      <img src={blog.image} alt={blog.title} loading="lazy" className="h-full w-full object-cover" />
+                      <Link to={blogUrl(blog)}><img src={blog.image} alt={blog.title} loading="lazy" className="h-full w-full object-cover" /></Link>
                     ) : (
                       <div className="grid h-full place-items-center font-display text-3xl font-bold text-navy-900/15">
                         {blog.category}
@@ -867,16 +748,18 @@ export default function Blog() {
                     <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-blue-500 uppercase">
                       <Tag size={11} /> {blog.category}
                     </span>
-                    <h3 className="font-display mt-2 text-lg font-bold text-navy-900 line-clamp-2">{blog.title}</h3>
+                    <h3 className="font-display mt-2 text-lg font-bold text-navy-900 line-clamp-2">
+                      <Link to={blogUrl(blog)} className="hover:text-blue-500 transition-colors">{blog.title}</Link>
+                    </h3>
                     <p className="mt-2 text-sm text-navy-900/60 line-clamp-3">{blog.shortDescription}</p>
                     <div className="mt-auto pt-4 flex items-center justify-between text-xs text-navy-900/45">
                       <span className="flex items-center gap-1.5"><Calendar size={12} /> {formatDate(blog.createdAt)}</span>
-                      <button
-                        onClick={() => setReading(blog)}
+                      <Link
+                        to={blogUrl(blog)}
                         className="inline-flex items-center gap-1 font-semibold text-blue-500 hover:gap-2 transition-all"
                       >
                         Read More <ArrowRight size={13} />
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 </motion.div>
@@ -886,9 +769,6 @@ export default function Blog() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {reading && <BlogReader blog={reading} onClose={closeReader} />}
-      </AnimatePresence>
     </section>
   );
 }

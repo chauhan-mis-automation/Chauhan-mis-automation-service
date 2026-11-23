@@ -1,15 +1,16 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { Phone, Mail, MapPin, MessageCircle, ArrowUpRight } from "lucide-react";
 import logo from "../assets/logo.jpeg";
 import { CONTACT_INFO, SERVICES } from "../data/servicesData";
 
 const QUICK_LINKS = [
-  { label: "Home", href: "#home" },
-  { label: "Services", href: "#services" },
-  { label: "About Us", href: "#about" },
-  { label: "Project", href: "#project" },
-  { label: "Contact Us", href: "#contact" },
-  { label: "Blog", href: "#blog" },
+  { label: "Home", href: "/" },
+  { label: "Services", href: "/services" },
+  { label: "About Us", href: "/about" },
+  { label: "Project", href: "/project" },
+  { label: "Contact Us", href: "/contact" },
+  { label: "Blog", href: "/blog" },
 ];
 
 const WHATSAPP_MESSAGE = encodeURIComponent(
@@ -57,15 +58,15 @@ export default function Footer() {
             <ul className="mt-4 space-y-2.5">
               {QUICK_LINKS.map((link) => (
                 <li key={link.label}>
-                  <a
-                    href={link.href}
+                  <Link
+                    to={link.href}
                     className="group inline-flex items-center gap-1.5 text-sm text-ice-200/60 transition-colors hover:text-teal-400"
                   >
                     <span className="relative">
                       {link.label}
                       <span className="absolute -bottom-0.5 left-0 h-px w-0 bg-teal-400 transition-all duration-300 group-hover:w-full" />
                     </span>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -77,8 +78,8 @@ export default function Footer() {
             <ul className="mt-4 space-y-2.5">
               {SERVICES.map((s) => (
                 <li key={s.id}>
-                  <a
-                    href="#services"
+                  <Link
+                    to={`/services/${s.id}`}
                     className="group inline-flex items-center gap-1.5 text-sm text-ice-200/60 transition-colors hover:text-teal-400"
                   >
                     <span className="relative">
@@ -86,7 +87,7 @@ export default function Footer() {
                       <span className="absolute -bottom-0.5 left-0 h-px w-0 bg-teal-400 transition-all duration-300 group-hover:w-full" />
                     </span>
                     <ArrowUpRight size={12} className="opacity-0 -translate-x-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0" />
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

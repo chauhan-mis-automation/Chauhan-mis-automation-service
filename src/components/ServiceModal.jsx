@@ -1,10 +1,13 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Check, ArrowRight, Cpu } from "lucide-react";
 import { AI_PROCESS_STEPS, AI_WHAT_YOU_GET, TECH_STACKS } from "../data/servicesData";
 import ProcessFlow from "./ProcessFlow";
 
 export default function ServiceModal({ service, onClose }) {
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (!service) return;
     const prev = document.body.style.overflow;
@@ -235,8 +238,11 @@ export default function ServiceModal({ service, onClose }) {
 
               {/* CTA */}
               <a
-                href="#contact"
-                onClick={onClose}
+                href="/contact"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate("/contact"); // popup band + Contact section tak scroll
+                }}
                 className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:scale-[1.03]"
               >
                 Get a Free Consultation <ArrowRight size={16} />

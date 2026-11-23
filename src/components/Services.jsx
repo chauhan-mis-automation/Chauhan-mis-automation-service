@@ -1,11 +1,32 @@
-import { useState } from "react";
+import { useCallback, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Check, ArrowRight, Sparkles } from "lucide-react";
 import { SERVICES } from "../data/servicesData";
 import ServiceModal from "./ServiceModal";
 
 export default function Services() {
-  const [active, setActive] = useState(null);
+  const { serviceId } = useParams();
+  const navigate = useNavigate();
+
+  // URL se service khulti hai: /services/ai-automation
+  const active = SERVICES.find((s) => s.id === serviceId) || null;
+
+  const openService = (service) => navigate(`/services/${service.id}`, { state: { noScroll: true } });
+  const closeService = useCallback(
+    () => navigate("/services", { state: { noScroll: true } }),
+    [navigate]
+  );
+
+  // Service khuli ho to browser tab ka title bhi uska naam
+  useEffect(() => {
+    if (!active) return;
+    const prev = document.title;
+    document.title = `${active.fullTitle || active.title} | Chauhan MIS Automation Services`;
+    return () => {
+      document.title = prev;
+    };
+  }, [active]);
 
   return (
     <section id="services" className="scroll-mt-24 bg-ice-50 pt-10 pb-20 relative overflow-hidden">
@@ -31,7 +52,7 @@ export default function Services() {
             <motion.button
               key={service.id}
               type="button"
-              onClick={() => setActive(service)}
+              onClick={() => openService(service)}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}
@@ -99,7 +120,7 @@ export default function Services() {
         </div>
       </div>
 
-      <ServiceModal service={active} onClose={() => setActive(null)} />
+      <ServiceModal service={active} onClose={closeService} />
     </section>
   );
 }

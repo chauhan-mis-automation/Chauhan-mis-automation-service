@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
@@ -216,12 +217,12 @@ export default function Project() {
           className="mt-12 text-center"
         >
           <p className="text-sm text-navy-900/60 mb-4">Have a similar idea in mind?</p>
-          <a
-            href="#contact"
+          <Link
+            to="/contact"
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:scale-[1.03]"
           >
             Start Your Project <ArrowUpRight size={16} />
-          </a>
+          </Link>
         </motion.div>
       </div>
     </section>

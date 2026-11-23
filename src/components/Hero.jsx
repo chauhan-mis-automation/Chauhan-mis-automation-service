@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -219,18 +220,18 @@ export default function Hero() {
             custom={3}
             className="mt-6 flex flex-wrap gap-3 sm:gap-4"
           >
-            <a
-              href="#services"
+            <Link
+              to="/services"
               className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-6 sm:px-7 py-3 sm:py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:scale-[1.03]"
             >
               Explore Services <ArrowRight size={16} />
-            </a>
-            <a
-              href="#project"
+            </Link>
+            <Link
+              to="/project"
               className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 sm:px-7 py-3 sm:py-3.5 text-sm font-semibold text-white transition-colors hover:bg-white/5"
             >
               View Our Work
-            </a>
+            </Link>
           </motion.div>
 
           <motion.div
