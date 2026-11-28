@@ -8,9 +8,10 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { CONTACT_INFO } from "../data/servicesData";
 import {
-  fetchPublishedBlogs, adminRequest, getSavedPassword,
+  fetchAllBlogs,
   slugify, parseKeywords, sanitizeHtml, formatDate, blogUrl,
 } from "../lib/blogApi";
+import BlogImage from "./BlogImage";
 
 const SITE_NAME = "Chauhan MIS Automation Services";
 
@@ -33,21 +34,18 @@ export default function BlogPost() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
 
-  // Blogs load karo (admin login hai to drafts bhi, taaki preview ho sake)
+  // Blogs load karo (drafts bhi, taaki draft ka preview link chale)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError("");
       try {
-        const password = getSavedPassword();
-        const list = password
-          ? (await adminRequest({ action: "list", password })).blogs
-          : await fetchPublishedBlogs();
+        const list = await fetchAllBlogs();
         if (!cancelled) setBlogs(list);
       } catch (err) {
         console.error(err);
-        if (!cancelled) setError("Blog load nahi ho paya. Thodi der baad try karein.");
+        if (!cancelled) setError("Could not load this blog. Please try again later.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -126,19 +124,19 @@ export default function BlogPost() {
 
           {loading ? (
             <p className="py-32 flex items-center justify-center gap-2 text-sm text-navy-900/40">
-              <Loader2 size={18} className="animate-spin" /> Blog load ho raha hai...
+              <Loader2 size={18} className="animate-spin" /> Loading blog...
             </p>
           ) : error ? (
             <p className="py-32 text-center text-sm text-red-500">{error}</p>
           ) : !blog ? (
             <div className="py-24 text-center">
-              <h1 className="font-display text-2xl font-bold text-navy-900">Blog nahi mila</h1>
-              <p className="mt-2 text-sm text-navy-900/50">Ho sakta hai ye blog hata diya gaya ho ya link galat ho.</p>
+              <h1 className="font-display text-2xl font-bold text-navy-900">Blog not found</h1>
+              <p className="mt-2 text-sm text-navy-900/50">This blog may have been removed, or the link is incorrect.</p>
               <Link
                 to="/blog"
                 className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-6 py-3 text-sm font-semibold text-white"
               >
-                <ArrowLeft size={15} /> Saare Blogs Dekhein
+                <ArrowLeft size={15} /> View All Blogs
               </Link>
             </div>
           ) : (
@@ -152,7 +150,7 @@ export default function BlogPost() {
               >
                 {blog.status === "Draft" && (
                   <p className="mb-4 rounded-lg bg-amber-100 px-4 py-2 text-xs font-semibold text-amber-800">
-                    Ye blog abhi Draft hai. Sirf aap (admin) ise dekh sakte hain.
+                    This blog is a draft. It is not listed on the website yet.
                   </p>
                 )}
 
@@ -174,7 +172,7 @@ export default function BlogPost() {
                 </div>
 
                 {blog.image && (
-                  <img
+                  <BlogImage
                     src={blog.image}
                     alt={blog.title}
                     className="mt-8 w-full rounded-2xl object-cover shadow-sm"
@@ -200,8 +198,8 @@ export default function BlogPost() {
                 {/* CTA */}
                 <div className="relative mt-10 overflow-hidden rounded-2xl bg-navy-950 p-6 sm:p-8">
                   <div className="pointer-events-none absolute -top-10 -right-10 h-40 w-40 rounded-full bg-violet-500/25 blur-3xl" />
-                  <p className="font-display text-xl font-bold text-white">Apne business ke liye automation chahiye?</p>
-                  <p className="mt-1.5 text-sm text-ice-200/70">Free consultation ke liye humse baat karein.</p>
+                  <p className="font-display text-xl font-bold text-white">Need automation for your business?</p>
+                  <p className="mt-1.5 text-sm text-ice-200/70">Talk to us for a free consultation.</p>
                   <div className="mt-5 flex flex-wrap gap-3">
                     <Link
                       to="/contact"
@@ -258,7 +256,7 @@ export default function BlogPost() {
                   <div className="mt-4 border-t border-navy-900/10">
                     {sidebarBlogs.length === 0 ? (
                       <p className="pt-4 text-sm text-navy-900/40">
-                        {q ? "Koi blog nahi mila." : "Abhi aur blogs nahi hain."}
+                        {q ? "No blogs found." : "No other blogs yet."}
                       </p>
                     ) : (
                       sidebarBlogs.map((b) => (
@@ -269,7 +267,7 @@ export default function BlogPost() {
                           className="group flex gap-3 border-b border-navy-900/5 py-4 last:border-0"
                         >
                           <span className="h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-blue-500/15 to-violet-500/15">
-                            {b.image && <img src={b.image} alt="" loading="lazy" className="h-full w-full object-cover" />}
+                            {b.image && <BlogImage src={b.image} alt="" loading="lazy" className="h-full w-full object-cover" />}
                           </span>
                           <span>
                             <span className="text-sm font-semibold leading-snug text-navy-900 line-clamp-3 group-hover:text-blue-500 transition-colors">

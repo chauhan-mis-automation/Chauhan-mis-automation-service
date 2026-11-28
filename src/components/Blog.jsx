@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  PASSWORD_KEY, fetchPublishedBlogs, adminRequest, getSavedPassword, clearBlogCache,
+  fetchAllBlogs, saveBlogRequest, deleteBlogRequest, clearBlogCache,
   slugify, parseKeywords, sanitizeHtml, formatDate, blogUrl,
 } from "../lib/blogApi";
+import BlogImage from "./BlogImage";
 import {
-  PenSquare, Save, X, Loader2, Lock, LogOut, Calendar, Tag, ArrowRight, Trash2, Pencil,
+  PenSquare, Save, X, Loader2, Calendar, Tag, ArrowRight, Trash2, Pencil,
   Undo2, Redo2, Bold, Italic, Underline, Strikethrough, List, ListOrdered,
   Link2, ImagePlus, Quote, Minus, Eraser, Code2, AlignLeft, AlignCenter, AlignRight,
 } from "lucide-react";
@@ -95,12 +96,12 @@ function RichTextEditor({ value, onChange }) {
   };
 
   const addLink = () => {
-    const url = prompt("Link URL daalein (https://...)");
+    const url = prompt("Enter link URL (https://...)");
     if (url) exec("createLink", url);
   };
 
   const addImage = () => {
-    const url = prompt("Image URL daalein (https://...)");
+    const url = prompt("Enter image URL (https://...)");
     if (url) exec("insertImage", url);
   };
 
@@ -220,12 +221,12 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
     setImageError("");
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setImageError("Sirf JPG, PNG ya WEBP image chalegi.");
+      setImageError("Only JPG, PNG or WEBP images are allowed.");
       e.target.value = "";
       return;
     }
     if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
-      setImageError(`Image ${MAX_IMAGE_MB} MB se chhoti honi chahiye.`);
+      setImageError(`Image must be smaller than ${MAX_IMAGE_MB} MB.`);
       e.target.value = "";
       return;
     }
@@ -233,7 +234,7 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
       const dataUrl = await compressImage(file);
       setForm((f) => ({ ...f, image: dataUrl }));
     } catch {
-      setImageError("Image load nahi ho payi, dusri image try karein.");
+      setImageError("Could not load this image. Please try another one.");
     }
   };
 
@@ -242,15 +243,15 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
     setFormError("");
     const plainContent = form.content.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
     if (!plainContent) {
-      setFormError("Blog content khali nahi ho sakta.");
+      setFormError("Blog content cannot be empty.");
       return;
     }
     if (form.content.length > MAX_CONTENT_CHARS) {
-      setFormError("Blog content bahut lamba hai. Content me paste ki hui images hata kar 'Insert image (URL)' use karein.");
+      setFormError("Blog content is too long. Remove pasted images from the content and use 'Insert image (URL)' instead.");
       return;
     }
     if (keywordList.length > MAX_KEYWORDS) {
-      setFormError(`Maximum ${MAX_KEYWORDS} SEO keywords allowed hain.`);
+      setFormError(`Maximum ${MAX_KEYWORDS} SEO keywords are allowed.`);
       return;
     }
     onSave({ ...form, slug, categorySlug, content: sanitizeHtml(form.content) });
@@ -272,14 +273,14 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
       <div>
         <label className={labelCls}>Blog Title *</label>
         <input required value={form.title} onChange={update("title")} placeholder="Enter English blog title" className={inputCls} />
-        <p className={hintCls}>Blog title English me enter karein.</p>
+        <p className={hintCls}>Enter the blog title in English.</p>
       </div>
 
       {/* Slug */}
       <div>
         <label className={labelCls}>SEO Friendly Blog Slug</label>
         <div className="mt-1.5 rounded-lg border border-navy-900/10 bg-ice-200/50 px-4 py-2.5 text-sm text-navy-900/60">
-          {slug || "Slug title se automatically generate hoga."}
+          {slug || "Slug will be generated automatically from the title."}
         </div>
       </div>
 
@@ -296,7 +297,7 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
         {imageError && <p className="mt-1 text-xs text-red-500">{imageError}</p>}
         {form.image && (
           <div className="mt-3 relative inline-block">
-            <img src={form.image} alt="Preview" className="h-32 rounded-lg object-cover" />
+            <BlogImage src={form.image} alt="Preview" className="h-32 rounded-lg object-cover" />
             <button
               type="button"
               onClick={() => setForm((f) => ({ ...f, image: "" }))}
@@ -315,7 +316,7 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
         <select required value={categoryChoice} onChange={handleCategoryChoice} className={inputCls}>
           <option value="" disabled>Select category</option>
           {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-          <option value={OTHER_CATEGORY}>Other (nayi category likhein)</option>
+          <option value={OTHER_CATEGORY}>Other (add a new category)</option>
         </select>
         {categoryChoice === OTHER_CATEGORY && (
           <input
@@ -323,12 +324,12 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
             autoFocus
             value={form.category}
             onChange={update("category")}
-            placeholder="Nayi category ka naam likhein, jaise: MIS Reports"
+            placeholder="Enter new category name, e.g. MIS Reports"
             className={inputCls}
           />
         )}
         <p className={hintCls}>
-          List se category chunein. Nayi category chahiye to "Other" chunein. Nayi category agle blog me list me apne aap aa jayegi.
+          Select a category from the list. Choose "Other" to add a new one. New categories will appear in this list automatically next time.
         </p>
         <div className="mt-2 rounded-lg border border-navy-900/10 bg-ice-200/50 px-4 py-2.5 text-xs text-navy-900/60">
           <p className="font-semibold">Category URL Preview:</p>
@@ -414,7 +415,7 @@ function BlogForm({ initial, existingCategories, onSave, onCancel, saving }) {
           <option>Draft</option>
           <option>Published</option>
         </select>
-        <p className={hintCls}>Sirf "Published" blogs website par sabko dikhenge.</p>
+        <p className={hintCls}>Only "Published" blogs are visible to everyone on the website.</p>
       </div>
 
       {formError && <p className="text-sm text-red-500">{formError}</p>}
@@ -458,13 +459,6 @@ export default function Blog() {
   const [showDrafts, setShowDrafts] = useState(false);
   const [toast, setToast] = useState("");
 
-  const [password, setPassword] = useState(getSavedPassword);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [showLogin, setShowLogin] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const isAdmin = !!password;
-
   const flash = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 3500);
@@ -475,17 +469,15 @@ export default function Blog() {
     setLoading(true);
     setLoadError("");
     try {
-      const list = isAdmin
-        ? (await adminRequest({ action: "list", password })).blogs
-        : await fetchPublishedBlogs({ force: true });
+      const list = await fetchAllBlogs(); // Drafts bhi (sirf "Show drafts" tick karne par dikhte hain)
       setBlogs(list);
     } catch (err) {
       console.error(err);
-      setLoadError("Blogs load nahi ho paye. Thodi der baad try karein.");
+      setLoadError("Could not load blogs. Please try again later.");
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, password]);
+  }, []);
 
   useEffect(() => {
     loadBlogs();
@@ -504,68 +496,34 @@ export default function Blog() {
 
   const draftCount = blogs.filter((b) => b.status === "Draft").length;
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoginError("");
-    setChecking(true);
-    try {
-      await adminRequest({ action: "login", password: passwordInput });
-      try { sessionStorage.setItem(PASSWORD_KEY, passwordInput); } catch { /* ignore */ }
-      setPassword(passwordInput);
-      setPasswordInput("");
-      setShowLogin(false);
-      setShowForm(true); // login hote hi form khol do
-    } catch (err) {
-      setLoginError(err.message);
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  // Button sabko dikhta hai — login nahi hai to pehle password poochho
-  const handleWriteClick = () => {
-    if (isAdmin) setShowForm(true);
-    else {
-      setLoginError("");
-      setShowLogin(true);
-    }
-  };
-
-  const handleLogout = () => {
-    try { sessionStorage.removeItem(PASSWORD_KEY); } catch { /* ignore */ }
-    setPassword("");
-    setShowForm(false);
-    setEditing(null);
-  };
-
   const handleSave = async (data) => {
     setSaving(true);
     try {
       const payload = editing ? { ...data, id: editing.id } : data;
-      await adminRequest({ action: "save", password, blog: payload });
+      await saveBlogRequest(payload);
       clearBlogCache();
-      flash(data.status === "Published" ? "Blog publish ho gaya! Ab sabko dikhega." : "Blog draft me save ho gaya.");
+      flash(data.status === "Published" ? "Blog published! It is now visible to everyone." : "Blog saved as draft.");
       if (data.status === "Draft") setShowDrafts(true);
       setShowForm(false);
       setEditing(null);
       await loadBlogs();
       setTimeout(() => document.getElementById("blog-list")?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (err) {
-      flash("Save nahi hua: " + err.message);
+      flash("Could not save blog: " + err.message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Kya aap ye blog delete karna chahte hain?")) return;
+    if (!confirm("Are you sure you want to delete this blog?")) return;
     try {
-      await adminRequest({ action: "delete", password, id });
+      await deleteBlogRequest(id);
       clearBlogCache();
       setBlogs((list) => list.filter((b) => b.id !== id));
-      flash("Blog delete ho gaya.");
+      flash("Blog deleted.");
     } catch (err) {
-      flash("Delete nahi hua: " + err.message);
+      flash("Could not delete blog: " + err.message);
     }
   };
 
@@ -612,49 +570,10 @@ export default function Blog() {
           <p className="mt-3 text-navy-900/60">
             Tips, guides and case studies on AI automation, MIS and business software.
           </p>
-          {!isAdmin && showLogin && (
-            <form onSubmit={handleLogin} className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              <div className="relative">
-                <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-900/40" />
-                <input
-                  type="password"
-                  required
-                  autoFocus
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Admin password"
-                  className="rounded-full border border-navy-900/10 bg-ice-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:border-blue-500"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={checking}
-                className="inline-flex items-center gap-2 rounded-full bg-navy-950 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-70"
-              >
-                {checking && <Loader2 size={14} className="animate-spin" />} Login
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLogin(false)}
-                className="rounded-full px-4 py-2.5 text-sm text-navy-900/50 hover:text-navy-900"
-              >
-                Cancel
-              </button>
-              {loginError && <p className="w-full text-xs text-red-500">{loginError}</p>}
-            </form>
-          )}
-          {isAdmin && (
+          {!showForm && (
             <button
-              onClick={handleLogout}
-              className="mt-4 inline-flex items-center gap-1.5 text-xs text-navy-900/50 hover:text-red-500"
-            >
-              <LogOut size={12} /> Admin logout
-            </button>
-          )}
-          {!showForm && !(showLogin && !isAdmin) && (
-            <button
-              onClick={handleWriteClick}
-              className="mt-4 ml-3 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:scale-[1.03]"
+              onClick={() => setShowForm(true)}
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:scale-[1.03]"
             >
               <PenSquare size={15} /> Write New Blog
             </button>
@@ -703,13 +622,13 @@ export default function Blog() {
 
           {loading ? (
             <p className="mt-10 flex items-center justify-center gap-2 text-sm text-navy-900/40">
-              <Loader2 size={16} className="animate-spin" /> Blogs load ho rahe hain...
+              <Loader2 size={16} className="animate-spin" /> Loading blogs...
             </p>
           ) : loadError ? (
             <p className="mt-10 text-center text-sm text-red-500">{loadError}</p>
           ) : visibleBlogs.length === 0 ? (
             <p className="mt-10 text-center text-sm text-navy-900/40">
-              {blogs.length === 0 ? "Jald hi naye blogs aa rahe hain." : "Is filter me koi blog nahi mila."}
+              {blogs.length === 0 ? "New blogs coming soon." : "No blogs found in this category."}
             </p>
           ) : (
             <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -724,7 +643,7 @@ export default function Blog() {
                 >
                   <div className="relative aspect-[16/9] bg-gradient-to-br from-blue-500/15 to-violet-500/15">
                     {blog.image ? (
-                      <Link to={blogUrl(blog)}><img src={blog.image} alt={blog.title} loading="lazy" className="h-full w-full object-cover" /></Link>
+                      <Link to={blogUrl(blog)}><BlogImage src={blog.image} alt={blog.title} loading="lazy" className="h-full w-full object-cover" /></Link>
                     ) : (
                       <div className="grid h-full place-items-center font-display text-3xl font-bold text-navy-900/15">
                         {blog.category}
@@ -735,14 +654,14 @@ export default function Blog() {
                         Draft
                       </span>
                     )}
-                    {isAdmin && <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => startEdit(blog)} title="Edit" className="grid place-items-center h-8 w-8 rounded-full bg-white/90 text-navy-900 shadow hover:text-blue-500">
                         <Pencil size={14} />
                       </button>
                       <button onClick={() => handleDelete(blog.id)} title="Delete" className="grid place-items-center h-8 w-8 rounded-full bg-white/90 text-navy-900 shadow hover:text-red-500">
                         <Trash2 size={14} />
                       </button>
-                    </div>}
+                    </div>
                   </div>
                   <div className="flex flex-1 flex-col p-5">
                     <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-blue-500 uppercase">

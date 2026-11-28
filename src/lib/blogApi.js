@@ -6,8 +6,6 @@
 /* ------------------------------------------------------------------ */
 export const BLOG_API_URL = "https://script.google.com/macros/s/AKfycbzg1lFevoQkmfxYXS4Mtwx8gvTzcxSPPLiTjFPdSRdWeD8TrIpkTvs1PDEXMH57pC5iFw/exec";
 
-export const PASSWORD_KEY = "chauhan_mis_blog_admin";
-
 // Ek baar load hue blogs yaad rakho, taaki har page par dobara load na ho
 let publishedCache = null;
 
@@ -15,31 +13,38 @@ export function clearBlogCache() {
   publishedCache = null;
 }
 
-// Public: sirf Published blogs
+// Sirf Published blogs (website par sabko dikhte hain)
 export async function fetchPublishedBlogs({ force = false } = {}) {
   if (!force && publishedCache) return publishedCache;
   const res = await fetch(BLOG_API_URL);
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error || "Blogs load nahi ho paye");
+  if (!data.ok) throw new Error(data.error || "Could not load blogs");
   publishedCache = data.blogs;
   return data.blogs;
 }
 
-// Admin: password ke saath (list / save / delete / login)
-export async function adminRequest(body) {
+// Saare blogs, Drafts bhi
+export async function fetchAllBlogs() {
+  const res = await fetch(`${BLOG_API_URL}?all=1`);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Could not load blogs");
+  return data.blogs;
+}
+
+// Blog save (naya ya edit) / delete
+export const saveBlogRequest = (blog) => postAction({ action: "save", blog });
+export const deleteBlogRequest = (id) => postAction({ action: "delete", id });
+
+async function postAction(body) {
   const res = await fetch(BLOG_API_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" }, // CORS preflight se bachne ke liye
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error || "Request fail ho gayi");
+  if (!data.ok) throw new Error(data.error || "Request failed");
   return data;
 }
-
-export const getSavedPassword = () => {
-  try { return sessionStorage.getItem(PASSWORD_KEY) || ""; } catch { return ""; }
-};
 
 export const slugify = (text = "") =>
   text
@@ -65,6 +70,8 @@ export function sanitizeHtml(html = "") {
       if ((name === "href" || name === "src") && value.startsWith("javascript:")) el.removeAttribute(attr.name);
     });
   });
+  // Content ki images bhi bina referrer ke load hon (Google images block na hon)
+  doc.querySelectorAll("img").forEach((img) => img.setAttribute("referrerpolicy", "no-referrer"));
   return doc.body.innerHTML;
 }
 
